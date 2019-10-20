@@ -1,8 +1,4 @@
-.. image:: https://pypip.in/v/django-mangopay/badge.png
-    :target: https://crate.io/packages/django-mangopay/
-    :alt: Latest PyPI version
-
-.. image:: https://travis-ci.org/FundedByMe/django-mangopay.svg?branch=master
+.. image:: https://travis-ci.org/mgaby25/django-mangopay.svg?branch=master
     :target: https://travis-ci.org/FundedByMe/django-mangopay
     :alt: Travis CI Status
 
