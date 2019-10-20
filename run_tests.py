@@ -20,7 +20,7 @@ def main():
 
     options, args = parser.parse_args()
 
-    app_path = 'mangopay'
+    app_path = 'mangopay2'
     parent_dir, app_name = os.path.split(app_path)
     sys.path.insert(0, parent_dir)
 
@@ -77,7 +77,10 @@ def main():
                 }
             }
         },
-        "ROOT_URLCONF": 'mangopay.tests.urls'
+        "ROOT_URLCONF": 'mangopay2.tests.urls',
+        "MANGOPAY_CLIENT_ID": "1",
+        "MANGOPAY_PASSPHRASE": "test pass",
+        "MANGOPAY_SANDBOX": True
     })
     django.setup()
     call_command("test", app_name)

@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class MangopayConfig(AppConfig):
-    name = 'mangopay'
+class Mangopay2Config(AppConfig):
+    name = 'mangopay2'
     verbose_name = "Mangopay"
