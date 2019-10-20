@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.core.exceptions import ValidationError
 
-from mock import patch
+from unittest.mock import patch
 
 from ..models import MangoPayPayInByCard, MangoPayPayInBankWire
 

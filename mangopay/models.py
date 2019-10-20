@@ -1,4 +1,4 @@
-import urllib2
+from urllib.request import urlopen
 import base64
 import jsonfield
 from datetime import datetime
@@ -360,7 +360,7 @@ class MangoPayPage(models.Model):
                                        self.document.mangopay_id)
 
     def _file_bytes(self):
-        response = urllib2.urlopen(self.file)
+        response = urlopen(self.file)
         bytes = base64.b64encode(response.read())
         return bytes
 
@@ -396,7 +396,7 @@ class MangoPayBankAccount(models.Model):
         mangopay_bank_account.OwnerName = \
             self.mangopay_user.user.get_full_name()
 
-        mangopay_bank_account.OwnerAddress = unicode(self.address)
+        mangopay_bank_account.OwnerAddress = str(self.address)
 
         if self.account_type == BA_BIC_IBAN:
             # BIC / IBAN type requires setting IBAN and BIC codes only

@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from mock import patch
+from unittest.mock import patch
 
 from ..models import MangoPayNaturalUser, MangoPayLegalUser
 from ..constants import (VALIDATED, IDENTITY_PROOF, NATURAL_USER, BUSINESS,

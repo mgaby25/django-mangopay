@@ -5,6 +5,7 @@ import sys
 
 from optparse import OptionParser
 
+import django
 from django.conf import settings
 from django.core.management import call_command
 
@@ -75,9 +76,12 @@ def main():
                     'propagate': True,
                 }
             }
-        }
+        },
+        "ROOT_URLCONF": 'mangopay.tests.urls'
     })
+    django.setup()
     call_command("test", app_name)
+
 
 if __name__ == "__main__":
     main()

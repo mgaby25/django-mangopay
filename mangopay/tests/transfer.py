@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from money import Money
-from mock import patch
+from unittest.mock import patch
 
 from ..models import MangoPayTransfer
 from ..tasks import create_mangopay_transfer

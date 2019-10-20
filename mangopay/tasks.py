@@ -123,11 +123,12 @@ def update_mangopay_pay_out(id):
     else:
         logger.error("Payout %i could not be processed successfully" % payout.id)
 
+
 @task
 def create_mangopay_transfer(transfer_id, fees=None):
     transfer = MangoPayTransfer.objects.get(id=transfer_id)
     try:
         transfer.create(fees=fees)
-    except ResponseException, e:
+    except ResponseException as e:
         kwargs = {"transfer_id": transfer_id, "fees": fees}
         raise create_mangopay_transfer.retry((), kwargs, exc=e)

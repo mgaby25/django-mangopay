@@ -80,7 +80,7 @@ BA_US_DEPOSIT_ACCOUNT_TYPES = (
 )
 
 
-STATUS_CHOICES_DICT = {v: k for k, v in dict(STATUS_CHOICES).iteritems()}
+STATUS_CHOICES_DICT = {v: k for k, v in dict(STATUS_CHOICES).items()}
 
 # Transaction statuses
 PENDING = "CREATED"
