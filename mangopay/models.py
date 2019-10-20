@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import models
 from django.utils.timezone import utc
+from model_utils.models import TimeStampedModel
 
 from money.contrib.django.models.fields import MoneyField
 from model_utils.managers import InheritanceManager
@@ -28,12 +29,9 @@ from mangopaysdk.types.bankaccountdetailsiban import BankAccountDetailsIBAN
 from mangopaysdk.types.bankaccountdetailsus import BankAccountDetailsUS
 from mangopaysdk.types.bankaccountdetailsother import BankAccountDetailsOTHER
 
-from mangopaysdk.types.payoutpaymentdetailsbankwire import (
-    PayOutPaymentDetailsBankWire)
-from mangopaysdk.types.payinpaymentdetailsbankwire import (
-    PayInPaymentDetailsBankWire)
-from mangopaysdk.types.payinexecutiondetailsdirect import (
-    PayInExecutionDetailsDirect)
+from mangopaysdk.types.payoutpaymentdetailsbankwire import PayOutPaymentDetailsBankWire
+from mangopaysdk.types.payinpaymentdetailsbankwire import PayInPaymentDetailsBankWire
+from mangopaysdk.types.payinexecutiondetailsdirect import PayInExecutionDetailsDirect
 from mangopaysdk.types.payinpaymentdetailscard import PayInPaymentDetailsCard
 from django_countries.fields import CountryField
 
@@ -59,12 +57,8 @@ from .constants import (INCOME_RANGE_CHOICES,
 from .client import get_mangopay_api_client
 
 
-auth_user_model = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
-
-
 def python_money_to_mangopay_money(python_money):
-    amount = python_money.amount.quantize(Decimal('.01'),
-                                          rounding=ROUND_FLOOR) * 100
+    amount = python_money.amount.quantize(Decimal('.01'), rounding=ROUND_FLOOR) * 100
     return Money(amount=int(amount), currency=str(python_money.currency))
 
 
@@ -78,16 +72,10 @@ def get_execution_date_as_datetime(mangopay_entity):
             return formated_date
 
 
-class MangoPayUser(models.Model):
-    objects = InheritanceManager()
-
-    create_timestamp = models.DateTimeField(auto_now_add=True, null=True)
-    last_edit_timestamp = models.DateTimeField(auto_now=True, null=True)
-
+class MangoPayUser(TimeStampedModel):
     mangopay_id = models.PositiveIntegerField(null=True, blank=True)
-    user = models.ForeignKey(auth_user_model, related_name="mangopay_users")
-    type = models.CharField(max_length=1, choices=USER_TYPE_CHOICES,
-                            null=True)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL)
+    type = models.CharField(max_length=1, choices=USER_TYPE_CHOICES, null=True)
     first_name = models.CharField(null=True, blank=True, max_length=99)
     last_name = models.CharField(null=True, blank=True, max_length=99)
     email = models.EmailField(max_length=254, blank=True, null=True)
@@ -99,6 +87,8 @@ class MangoPayUser(models.Model):
 
     # Regular Authentication Fields:
     address = models.CharField(blank=True, null=True, max_length=254)
+
+    objects = InheritanceManager()
 
     def create(self):
         client = get_mangopay_api_client()
@@ -117,8 +107,14 @@ class MangoPayUser(models.Model):
     def is_natural(self):
         return self.type == NATURAL_USER
 
-    def has_regular_authenication(self):
-        return (self.has_light_authenication()
+    def has_light_authentication(self):
+        raise NotImplemented
+
+    def _required_documents_types(self):
+        raise NotImplemented
+
+    def has_regular_authentication(self):
+        return (self.has_light_authentication()
                 and self._are_required_documents_validated())
 
     def required_documents_types_that_need_to_be_reuploaded(self):
@@ -177,12 +173,14 @@ class MangoPayUser(models.Model):
             pass
         return ''
 
+    def __str__(self):
+        return self._first_name + ' ' + self._last_name
+
 
 class MangoPayNaturalUser(MangoPayUser):
-    # Regular Authenication Fields:
+    # Regular Authentication Fields:
     occupation = models.CharField(blank=True, null=True, max_length=254)
-    income_range = models.SmallIntegerField(
-        blank=True, null=True, choices=INCOME_RANGE_CHOICES)
+    income_range = models.SmallIntegerField(blank=True, null=True, choices=INCOME_RANGE_CHOICES)
 
     def _build(self):
         mangopay_user = UserNatural()
@@ -198,25 +196,24 @@ class MangoPayNaturalUser(MangoPayUser):
         mangopay_user.Id = self.mangopay_id
         return mangopay_user
 
-    def __unicode__(self):
+    def __str__(self):
         return self.user.get_full_name()
 
     def save(self, *args, **kwargs):
         self.type = NATURAL_USER
         return super(MangoPayNaturalUser, self).save(*args, **kwargs)
 
-    def has_light_authenication(self):
+    def has_light_authentication(self):
         return (self.user
                 and self.country_of_residence
                 and self.nationality
                 and self.birthday)
 
-    def has_regular_authenication(self):
+    def has_regular_authentication(self):
         return (self.address
                 and self.occupation
                 and self.income_range
-                and super(MangoPayNaturalUser,
-                          self).has_regular_authenication())
+                and super(MangoPayNaturalUser, self).has_regular_authentication())
 
     def _required_documents_types(self):
         return [IDENTITY_PROOF]
@@ -226,34 +223,29 @@ class MangoPayLegalUser(MangoPayUser):
     business_name = models.CharField(max_length=254)
     generic_business_email = models.EmailField(max_length=254)
 
-    # Regular Authenication Fields:
-    headquaters_address = models.CharField(blank=True, max_length=254,
-                                           null=True)
+    # Regular Authentication Fields:
+    headquarters_address = models.CharField(max_length=254, blank=True, null=True)
 
     def _build(self):
         mangopay_user = UserLegal()
         mangopay_user.Email = self.generic_business_email
         mangopay_user.Name = self.business_name
         mangopay_user.LegalPersonType = USER_TYPE_CHOICES_DICT[self.type]
-        mangopay_user.HeadquartersAddress = self.headquaters_address
+        mangopay_user.HeadquartersAddress = self.headquarters_address
         mangopay_user.LegalRepresentativeFirstName = self.first_name
         mangopay_user.LegalRepresentativeLastName = self.last_name
         mangopay_user.LegalRepresentativeAddress = self.address
         mangopay_user.LegalRepresentativeEmail = self.email
         mangopay_user.LegalRepresentativeBirthday = self._birthday_fmt()
         mangopay_user.LegalRepresentativeNationality = self.nationality.code
-        mangopay_user.LegalRepresentativeCountryOfResidence =\
-            self.country_of_residence.code
+        mangopay_user.LegalRepresentativeCountryOfResidence = self.country_of_residence.code
         mangopay_user.Id = self.mangopay_id
         return mangopay_user
 
-    def __unicode__(self):
-        if self.business_name:
-            return self.business_name
-        else:
-            return super(MangoPayLegalUser, self).__unicode__()
+    def __str__(self):
+        return self.business_name if self.business_name else str(self)
 
-    def has_light_authenication(self):
+    def has_light_authentication(self):
         return (self.type
                 and self.business_name
                 and self.generic_business_email
@@ -263,12 +255,12 @@ class MangoPayLegalUser(MangoPayUser):
                 and self.nationality
                 and self.birthday)
 
-    def has_regular_authenication(self):
+    def has_regular_authentication(self):
         return (self.address
-                and self.headquaters_address
+                and self.headquarters_address
                 and self.address
                 and self.email
-                and super(MangoPayLegalUser, self).has_regular_authenication())
+                and super(MangoPayLegalUser, self).has_regular_authentication())
 
     def _required_documents_types(self):
         types = [IDENTITY_PROOF, REGISTRATION_PROOF]
@@ -281,30 +273,24 @@ class MangoPayLegalUser(MangoPayUser):
 
 class MangoPayDocument(models.Model):
     mangopay_id = models.PositiveIntegerField(null=True, blank=True)
-    mangopay_user = models.ForeignKey(MangoPayUser,
-                                      related_name="mangopay_documents")
-    type = models.CharField(max_length=2,
-                            choices=DOCUMENT_TYPE_CHOICES)
-    status = models.CharField(blank=True, null=True, max_length=1,
-                              choices=STATUS_CHOICES)
-    refused_reason_message = models.CharField(null=True, blank=True,
-                                              max_length=255)
+    mangopay_user = models.ForeignKey(MangoPayUser, related_name="mangopay_documents")
+    type = models.CharField(max_length=2, choices=DOCUMENT_TYPE_CHOICES)
+    status = models.CharField(blank=True, null=True, max_length=1, choices=STATUS_CHOICES)
+    refused_reason_message = models.CharField(null=True, blank=True, max_length=255)
 
     def create(self, tag=''):
         document = KycDocument()
         document.Tag = tag
         document.Type = DOCUMENT_TYPE_CHOICES_DICT[self.type]
         client = get_mangopay_api_client()
-        created_document = client.users.CreateUserKycDocument(
-            document, self.mangopay_user.mangopay_id)
+        created_document = client.users.CreateUserKycDocument(document, self.mangopay_user.mangopay_id)
         self.mangopay_id = created_document.Id
         self.status = STATUS_CHOICES_DICT[created_document.Status]
         self.save()
 
     def get(self):
         client = get_mangopay_api_client()
-        document = client.users.GetUserKycDocument(
-            self.mangopay_id, self.mangopay_user.mangopay_id)
+        document = client.users.GetUserKycDocument(self.mangopay_id, self.mangopay_user.mangopay_id)
         self.refused_reason_message = document.RefusedReasonMessage
         self.status = STATUS_CHOICES_DICT[document.Status]
         self.save()
@@ -317,14 +303,14 @@ class MangoPayDocument(models.Model):
             document.Status = "VALIDATION_ASKED"
             client = get_mangopay_api_client()
             updated_document = client.users.UpdateUserKycDocument(
-                document, self.mangopay_user.mangopay_id, self.mangopay_id)
+                document, self.mangopay_user.mangopay_id, self.mangopay_id
+            )
             self.status = STATUS_CHOICES_DICT[updated_document.Status]
             self.save()
         else:
-            raise BaseException('Cannot ask for validation of a document'
-                                'not in the created state')
+            raise BaseException('Cannot ask for validation of a document not in the created state')
 
-    def __unicode__(self):
+    def __str__(self):
         return str(self.mangopay_id) + " " + str(self.status)
 
 
@@ -342,8 +328,7 @@ def page_storage():
 
 
 class MangoPayPage(models.Model):
-    document = models.ForeignKey(MangoPayDocument,
-                                 related_name="mangopay_pages")
+    document = models.ForeignKey(MangoPayDocument, related_name="mangopay_pages")
     file = django_filepicker.models.FPUrlField(
         max_length=255,
         additional_params={
@@ -366,14 +351,13 @@ class MangoPayPage(models.Model):
 
 
 class MangoPayBankAccount(models.Model):
-    mangopay_user = models.ForeignKey(MangoPayUser,
-                                      related_name="mangopay_bank_accounts")
+    mangopay_user = models.ForeignKey(MangoPayUser, related_name="mangopay_bank_accounts")
     mangopay_id = models.PositiveIntegerField(null=True, blank=True)
 
     address = models.CharField(max_length=254)
-    account_type = models.CharField(max_length=2,
-                                    choices=MANGOPAY_BANKACCOUNT_TYPE,
-                                    default=BA_BIC_IBAN)  # Defaults to BIC/IBAN type
+    account_type = models.CharField(
+        max_length=2, choices=MANGOPAY_BANKACCOUNT_TYPE, default=BA_BIC_IBAN
+    )  # Defaults to BIC/IBAN type
 
     iban = IBANField(blank=True, null=True)
 
@@ -384,8 +368,7 @@ class MangoPayBankAccount(models.Model):
     # BA_US type only fields
     aba = models.CharField(max_length=9, null=True, blank=True)
     deposit_account_type = models.CharField(
-        choices=BA_US_DEPOSIT_ACCOUNT_TYPES,
-        max_length=8, null=True, blank=True,
+        choices=BA_US_DEPOSIT_ACCOUNT_TYPES, max_length=8, null=True, blank=True,
     )
 
     def create(self):
@@ -393,8 +376,7 @@ class MangoPayBankAccount(models.Model):
         mangopay_bank_account = BankAccount()
         mangopay_bank_account.UserId = self.mangopay_user.mangopay_id
 
-        mangopay_bank_account.OwnerName = \
-            self.mangopay_user.user.get_full_name()
+        mangopay_bank_account.OwnerName = self.mangopay_user.user.get_full_name()
 
         mangopay_bank_account.OwnerAddress = str(self.address)
 
@@ -408,8 +390,7 @@ class MangoPayBankAccount(models.Model):
             mangopay_bank_account.Details = BankAccountDetailsUS()
             mangopay_bank_account.Details.Type = "US"
             mangopay_bank_account.Details.ABA = self.aba
-            mangopay_bank_account.Details.DepositAccountType = \
-                self.deposit_account_type
+            mangopay_bank_account.Details.DepositAccountType = self.deposit_account_type
             mangopay_bank_account.Details.AccountNumber = self.account_number
 
         elif self.account_type == BA_OTHER:
@@ -443,7 +424,8 @@ class MangoPayBankAccount(models.Model):
 
         created_bank_account = client.users.CreateBankAccount(
             str(self.mangopay_user.mangopay_id),
-            mangopay_bank_account)
+            mangopay_bank_account
+        )
 
         self.mangopay_id = created_bank_account.Id
 
@@ -452,8 +434,7 @@ class MangoPayBankAccount(models.Model):
 
 class MangoPayWallet(models.Model):
     mangopay_id = models.PositiveIntegerField(null=True, blank=True)
-    mangopay_user = models.ForeignKey(
-        MangoPayUser, related_name="mangopay_wallets")
+    mangopay_user = models.ForeignKey(MangoPayUser, related_name="mangopay_wallets")
     currency = models.CharField(max_length=3, default="EUR")
 
     def create(self, description):
@@ -468,8 +449,7 @@ class MangoPayWallet(models.Model):
 
     def balance(self):
         wallet = self._get()
-        return PythonMoney(wallet.Balance.Amount / 100.0,
-                           wallet.Balance.Currency)
+        return PythonMoney(wallet.Balance.Amount / 100.0, wallet.Balance.Currency)
 
     def _get(self):
         client = get_mangopay_api_client()
@@ -482,12 +462,9 @@ class MangoPayPayIn(models.Model):
     mangopay_wallet = models.ForeignKey(MangoPayWallet, related_name="mangopay_payins")
 
     execution_date = models.DateTimeField(blank=True, null=True)
-    status = models.CharField(max_length=9, choices=TRANSACTION_STATUS_CHOICES,
-                              blank=True, null=True)
-    debited_funds = MoneyField(default=0, default_currency="EUR",
-                               decimal_places=2, max_digits=12)
-    fees = MoneyField(default=0, default_currency="EUR", decimal_places=2,
-                      max_digits=12)
+    status = models.CharField(max_length=9, choices=TRANSACTION_STATUS_CHOICES, blank=True, null=True)
+    debited_funds = MoneyField(default=0, default_currency="EUR", decimal_places=2, max_digits=12)
+    fees = MoneyField(default=0, default_currency="EUR", decimal_places=2, max_digits=12)
     result_code = models.CharField(null=True, blank=True, max_length=6)
     type = models.CharField(null=False, blank=False, choices=MANGOPAY_PAYIN_CHOICES, max_length=10)
 
@@ -511,8 +488,7 @@ class MangoPayPayIn(models.Model):
         pay_in.AuthorId = self.mangopay_user.mangopay_id
         pay_in.CreditedUserId = self.mangopay_user.mangopay_id
         pay_in.CreditedWalletId = self.mangopay_wallet.mangopay_id
-        pay_in.DebitedFunds = python_money_to_mangopay_money(
-            self.debited_funds)
+        pay_in.DebitedFunds = python_money_to_mangopay_money(self.debited_funds)
         pay_in.Fees = python_money_to_mangopay_money(self.fees)
         pay_in.PaymentDetails = self._get_payment_details()
         pay_in.ExecutionDetails = self._get_execution_details()
@@ -602,26 +578,19 @@ class MangoPayPayInBankWire(MangoPayPayIn):
 
 class MangoPayPayOut(models.Model):
     mangopay_id = models.PositiveIntegerField(null=True, blank=True)
-    mangopay_user = models.ForeignKey(MangoPayUser,
-                                      related_name="mangopay_payouts")
-    mangopay_wallet = models.ForeignKey(MangoPayWallet,
-                                        related_name="mangopay_payouts")
-    mangopay_bank_account = models.ForeignKey(MangoPayBankAccount,
-                                              related_name="mangopay_payouts")
+    mangopay_user = models.ForeignKey(MangoPayUser, related_name="mangopay_payouts")
+    mangopay_wallet = models.ForeignKey(MangoPayWallet, related_name="mangopay_payouts")
+    mangopay_bank_account = models.ForeignKey(MangoPayBankAccount, related_name="mangopay_payouts")
     execution_date = models.DateTimeField(blank=True, null=True)
-    status = models.CharField(max_length=9, choices=TRANSACTION_STATUS_CHOICES,
-                              blank=True, null=True)
-    debited_funds = MoneyField(default=0, default_currency="EUR",
-                               decimal_places=2, max_digits=12)
-    fees = MoneyField(default=0, default_currency="EUR", decimal_places=2,
-                      max_digits=12)
+    status = models.CharField(max_length=9, choices=TRANSACTION_STATUS_CHOICES, blank=True, null=True)
+    debited_funds = MoneyField(default=0, default_currency="EUR", decimal_places=2, max_digits=12)
+    fees = MoneyField(default=0, default_currency="EUR", decimal_places=2, max_digits=12)
 
     def create(self, tag=''):
         pay_out = PayOut()
         pay_out.Tag = tag
         pay_out.AuthorId = self.mangopay_user.mangopay_id
-        pay_out.DebitedFunds = python_money_to_mangopay_money(
-            self.debited_funds)
+        pay_out.DebitedFunds = python_money_to_mangopay_money(self.debited_funds)
         pay_out.Fees = python_money_to_mangopay_money(self.fees)
         pay_out.DebitedWalletId = self.mangopay_wallet.mangopay_id
         details = PayOutPaymentDetailsBankWire()
@@ -668,11 +637,10 @@ class MangoPayCard(models.Model):
 
 class MangoPayCardRegistration(models.Model):
     mangopay_id = models.PositiveIntegerField(null=True, blank=True)
-    mangopay_user = models.ForeignKey(
-        MangoPayUser, related_name="mangopay_card_registrations")
+    mangopay_user = models.ForeignKey(MangoPayUser, related_name="mangopay_card_registrations")
     mangopay_card = models.OneToOneField(
-        MangoPayCard, null=True, blank=True,
-        related_name="mangopay_card_registration")
+        MangoPayCard, null=True, blank=True, related_name="mangopay_card_registration"
+    )
 
     def create(self, currency):
         client = get_mangopay_api_client()
@@ -689,7 +657,8 @@ class MangoPayCardRegistration(models.Model):
         preregistration_data = {
             "preregistrationData": card_registration.PreregistrationData,
             "accessKey": card_registration.AccessKey,
-            "cardRegistrationURL": card_registration.CardRegistrationURL}
+            "cardRegistrationURL": card_registration.CardRegistrationURL
+        }
         return preregistration_data
 
     def save_mangopay_card_id(self, mangopay_card_id):
@@ -706,13 +675,10 @@ class MangoPayCardRegistration(models.Model):
 
 class MangoPayRefund(models.Model):
     mangopay_id = models.PositiveIntegerField(null=True, blank=True)
-    mangopay_user = models.ForeignKey(MangoPayUser,
-                                      related_name="mangopay_refunds")
-    mangopay_pay_in = models.ForeignKey(MangoPayPayIn,
-                                        related_name="mangopay_refunds")
+    mangopay_user = models.ForeignKey(MangoPayUser, related_name="mangopay_refunds")
+    mangopay_pay_in = models.ForeignKey(MangoPayPayIn, related_name="mangopay_refunds")
     execution_date = models.DateTimeField(blank=True, null=True)
-    status = models.CharField(max_length=9, choices=TRANSACTION_STATUS_CHOICES,
-                              blank=True, null=True)
+    status = models.CharField(max_length=9, choices=TRANSACTION_STATUS_CHOICES, blank=True, null=True)
     result_code = models.CharField(null=True, blank=True, max_length=6)
 
     def create_simple(self):
@@ -732,27 +698,20 @@ class MangoPayRefund(models.Model):
 
 class MangoPayTransfer(models.Model):
     mangopay_id = models.PositiveIntegerField(null=True, blank=True)
-    mangopay_debited_wallet = models.ForeignKey(
-        MangoPayWallet, related_name="mangopay_debited_wallets")
-    mangopay_credited_wallet = models.ForeignKey(
-        MangoPayWallet, related_name="mangopay_credited_wallets")
-    debited_funds = MoneyField(default=0, default_currency="EUR",
-                               decimal_places=2, max_digits=12)
+    mangopay_debited_wallet = models.ForeignKey(MangoPayWallet, related_name="mangopay_debited_wallets")
+    mangopay_credited_wallet = models.ForeignKey(MangoPayWallet, related_name="mangopay_credited_wallets")
+    debited_funds = MoneyField(default=0, default_currency="EUR", decimal_places=2, max_digits=12)
     execution_date = models.DateTimeField(blank=True, null=True)
-    status = models.CharField(max_length=9, choices=TRANSACTION_STATUS_CHOICES,
-                              blank=True, null=True)
+    status = models.CharField(max_length=9, choices=TRANSACTION_STATUS_CHOICES, blank=True, null=True)
     result_code = models.CharField(null=True, blank=True, max_length=6)
 
     def create(self, fees=None):
         transfer = Transfer()
         transfer.DebitedWalletId = self.mangopay_debited_wallet.mangopay_id
         transfer.CreditedWalletId = self.mangopay_credited_wallet.mangopay_id
-        transfer.AuthorId =\
-            self.mangopay_debited_wallet.mangopay_user.mangopay_id
-        transfer.CreditedUserId =\
-            self.mangopay_credited_wallet.mangopay_user.mangopay_id
-        transfer.DebitedFunds = python_money_to_mangopay_money(
-            self.debited_funds)
+        transfer.AuthorId = self.mangopay_debited_wallet.mangopay_user.mangopay_id
+        transfer.CreditedUserId = self.mangopay_credited_wallet.mangopay_user.mangopay_id
+        transfer.DebitedFunds = python_money_to_mangopay_money(self.debited_funds)
         if not fees:
             fees = PythonMoney(0, self.debited_funds.currency)
         transfer.Fees = python_money_to_mangopay_money(fees)

@@ -51,8 +51,8 @@ class LightAuthenticationMangoPayNaturalUserTests(
         self.user = LightAuthenticationMangoPayNaturalUserFactory()
 
     def test_has_authentication_levels(self):
-        self.assertTrue(self.user.has_light_authenication())
-        self.assertFalse(self.user.has_regular_authenication())
+        self.assertTrue(self.user.has_light_authentication())
+        self.assertFalse(self.user.has_regular_authentication())
 
 
 class RegularAuthenticationMangoPayNaturalUserTests(
@@ -66,8 +66,8 @@ class RegularAuthenticationMangoPayNaturalUserTests(
                                                 status=VALIDATED)
 
     def test_has_authentication_levels(self):
-        self.assertTrue(self.user.has_light_authenication())
-        self.assertTrue(self.user.has_regular_authenication())
+        self.assertTrue(self.user.has_light_authentication())
+        self.assertTrue(self.user.has_regular_authentication())
 
     def test_required_documents_types_that_need_to_be_reuploaded(self):
         self.assertEqual(
@@ -104,8 +104,8 @@ class LightAuthenticationMangoPayLegalUserTests(
         self.user = LightAuthenticationMangoPayLegalUserFactory()
 
     def test_has_authentication_levels(self):
-        self.assertTrue(self.user.has_light_authenication())
-        self.assertFalse(self.user.has_regular_authenication())
+        self.assertTrue(self.user.has_light_authentication())
+        self.assertFalse(self.user.has_regular_authentication())
 
 
 class RegularAuthenticationMangoPayLegalUserTests(
@@ -128,8 +128,8 @@ class RegularAuthenticationMangoPayLegalUserTests(
             status=VALIDATED)
 
     def test_has_authentication_levels(self):
-        self.assertTrue(self.user.has_light_authenication())
-        self.assertTrue(self.user.has_regular_authenication())
+        self.assertTrue(self.user.has_light_authentication())
+        self.assertTrue(self.user.has_regular_authentication())
 
     def test_required_documents_types_that_need_to_be_reuploaded(self):
         self.assertEqual(

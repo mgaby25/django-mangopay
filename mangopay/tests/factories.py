@@ -79,7 +79,7 @@ class MangoPayLegalUserFactory(factory.DjangoModelFactory):
     generic_business_email = "hello@fundedbyme.com"
     first_name = "Arno"
     last_name = "Smit"
-    headquaters_address = None
+    headquarters_address = None
     email = None
 
 
@@ -91,7 +91,7 @@ class LightAuthenticationMangoPayLegalUserFactory(
 class RegularAuthenticationMangoPayLegalUserFactory(
         MangoPayLegalUserFactory):
     address = "Hammerby Sjostad 3"
-    headquaters_address = "Sveavagen 1"
+    headquarters_address = "Sveavagen 1"
     email = "arno.smit@fundedbyme.com"
 
 
