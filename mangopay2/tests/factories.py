@@ -3,23 +3,23 @@ import datetime
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from django.conf import settings
+from mangopay.constants import LEGAL_USER_TYPE_CHOICES, BANK_ACCOUNT_TYPE_CHOICES, DOCUMENTS_TYPE_CHOICES, \
+    PAYIN_PAYMENT_TYPE
 
 from money import Money
 import factory
 
-from ..models import (MangoPayNaturalUser, MangoPayBankAccount,
-                      MangoPayLegalUser, MangoPayWallet,
-                      MangoPayCardRegistration, MangoPayCard,
-                      MangoPayRefund, MangoPayPayIn, MangoPayPage,
-                      MangoPayPayOut, MangoPayDocument, MangoPayTransfer)
-from ..constants import (IDENTITY_PROOF, BUSINESS, BANK_WIRE, CARD_WEB,
-                         BA_BIC_IBAN, BA_US, BA_OTHER)
+from ..models import (
+    MangoPayNaturalUser, MangoPayBankAccount, MangoPayLegalUser, MangoPayWallet, MangoPayCardRegistration,
+    MangoPayCard, MangoPayInRefund, MangoPayPayIn, MangoPayPage, MangoPayPayOut, MangoPayDocument, MangoPayTransfer
+)
 
 
 user_model_factory = getattr(
     settings,
     "AUTH_USER_MODEL_FACTORY",
-    "mangopay.tests.factories.UserFactory")
+    "mangopay2.tests.factories.UserFactory"
+)
 
 
 class UserFactory(factory.DjangoModelFactory):
@@ -60,7 +60,7 @@ class RegularAuthenticationMangoPayNaturalUserFactory(MangoPayNaturalUserFactory
 
     address = "Somewhere over the rainbow"
     occupation = "Cobbler"
-    income_range = 1
+    income_range = '1'
 
 
 class MangoPayLegalUserFactory(factory.DjangoModelFactory):
@@ -68,7 +68,7 @@ class MangoPayLegalUserFactory(factory.DjangoModelFactory):
     class Meta:
         model = MangoPayLegalUser
 
-    type = BUSINESS
+    legal_person_type = LEGAL_USER_TYPE_CHOICES.business
     mangopay_id = None
     user = factory.SubFactory(user_model_factory)
     birthday = datetime.date(1989, 10, 20)
@@ -83,13 +83,11 @@ class MangoPayLegalUserFactory(factory.DjangoModelFactory):
     email = None
 
 
-class LightAuthenticationMangoPayLegalUserFactory(
-        MangoPayLegalUserFactory):
+class LightAuthenticationMangoPayLegalUserFactory(MangoPayLegalUserFactory):
     pass
 
 
-class RegularAuthenticationMangoPayLegalUserFactory(
-        MangoPayLegalUserFactory):
+class RegularAuthenticationMangoPayLegalUserFactory(MangoPayLegalUserFactory):
     address = "Hammerby Sjostad 3"
     headquarters_address = "Sveavagen 1"
     email = "arno.smit@fundedbyme.com"
@@ -106,14 +104,14 @@ class MangoPayBankAccountFactory(factory.DjangoModelFactory):
 
 
 class MangoPayIBANBankAccountFactory(MangoPayBankAccountFactory):
-    account_type = BA_BIC_IBAN
+    account_type = BANK_ACCOUNT_TYPE_CHOICES.iban
     iban = "SE3550000000054910000003"
     country = "SE"
     bic = "DABAIE2D"
 
 
 class MangoPayOTHERBankAccountFactory(MangoPayBankAccountFactory):
-    account_type = BA_OTHER
+    account_type = BANK_ACCOUNT_TYPE_CHOICES.other
     account_number = "66112231"
     country = "SY"
     bic = "DABAIE2D"
@@ -121,7 +119,7 @@ class MangoPayOTHERBankAccountFactory(MangoPayBankAccountFactory):
 
 class MangoPayUSBankAccountFactory(MangoPayBankAccountFactory):
     country = "US"
-    account_type = BA_US
+    account_type = BANK_ACCOUNT_TYPE_CHOICES.us
     account_number = "3327586"
     aba = "021000089"
     deposit_account_type = "CHECKING"
@@ -156,7 +154,7 @@ class MangoPayDocumentFactory(factory.DjangoModelFactory):
 
     mangopay_id = None
     mangopay_user = factory.SubFactory(MangoPayNaturalUserFactory)
-    type = IDENTITY_PROOF
+    type = DOCUMENTS_TYPE_CHOICES.identity_proof
     status = None
     refused_reason_message = None
 
@@ -216,7 +214,7 @@ class MangoPayPayInFactory(MangoPayPayInAbstractFactory):
 
     mangopay_card = factory.SubFactory(MangoPayCardFactory)
     secure_mode_redirect_url = None
-    type = CARD_WEB
+    payment_type = PAYIN_PAYMENT_TYPE.card
 
     @factory.post_generation
     def mangopay_refunds(self, create, extracted, **kwargs):
@@ -237,13 +235,13 @@ class MangoPayPayInBankWireFactory(MangoPayPayInAbstractFactory):
 
     wire_reference = None
     mangopay_bank_account = None
-    type = BANK_WIRE
+    type = PAYIN_PAYMENT_TYPE.bank_wire
 
 
-class MangoPayRefundFactory(factory.DjangoModelFactory):
+class MangoPayInRefundFactory(factory.DjangoModelFactory):
 
     class Meta:
-        model = MangoPayRefund
+        model = MangoPayInRefund
 
     mangopay_id = None
     mangopay_user = factory.SubFactory(MangoPayNaturalUserFactory)

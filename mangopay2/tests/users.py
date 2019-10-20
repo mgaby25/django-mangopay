@@ -2,22 +2,29 @@ from django.test import TestCase
 
 from unittest.mock import patch
 
-from ..models import MangoPayNaturalUser, MangoPayLegalUser
-from ..constants import (VALIDATED, IDENTITY_PROOF, NATURAL_USER, BUSINESS,
-                         ARTICLES_OF_ASSOCIATION, REGISTRATION_PROOF,
-                         SHAREHOLDER_DECLARATION, REFUSED, VALIDATION_ASKED)
+from mangopay.constants import DOCUMENTS_TYPE_CHOICES, DOCUMENTS_STATUS_CHOICES, USER_TYPE_CHOICES, \
+    LEGAL_USER_TYPE_CHOICES
 
-from .factories import (LightAuthenticationMangoPayNaturalUserFactory,
-                        RegularAuthenticationMangoPayNaturalUserFactory,
-                        LightAuthenticationMangoPayLegalUserFactory,
-                        RegularAuthenticationMangoPayLegalUserFactory,
-                        MangoPayDocumentFactory)
+from ..models import MangoPayNaturalUser, MangoPayLegalUser
+
+from .factories import (
+    LightAuthenticationMangoPayNaturalUserFactory, RegularAuthenticationMangoPayNaturalUserFactory,
+    LightAuthenticationMangoPayLegalUserFactory, RegularAuthenticationMangoPayLegalUserFactory,
+    MangoPayDocumentFactory
+)
 from .client import MockMangoPayApi
+
+IDENTITY_PROOF = DOCUMENTS_TYPE_CHOICES.identity_proof
+REGISTRATION_PROOF = DOCUMENTS_TYPE_CHOICES.registration_proof
+SHAREHOLDER_DECLARATION = DOCUMENTS_TYPE_CHOICES.shareholder_declaration
+ARTICLES_OF_ASSOCIATION = DOCUMENTS_TYPE_CHOICES.articles_of_association
+
+VALIDATED = DOCUMENTS_STATUS_CHOICES.validated
 
 
 class AbstractMangoPayUserTests(object):
 
-    @patch("mangopay.models.get_mangopay_api_client")
+    @patch("mangopay2.client.get_mangopay_api_handler")
     def test_user_created(self, mock_client):
         id = 22
         mock_client.return_value = MockMangoPayApi(user_id=id)
@@ -25,7 +32,7 @@ class AbstractMangoPayUserTests(object):
         self.user.create()
         self.klass.objects.get(id=self.user.id, mangopay_id=id)
 
-    @patch("mangopay.models.get_mangopay_api_client")
+    @patch("mangopay2.client.get_mangopay_api_handler")
     def test_user_updated(self, mock_client):
         mock_client.return_value = MockMangoPayApi(user_id=id)
         self.user.mangopay_id = 33
@@ -38,7 +45,7 @@ class AbstractMangoPayNaturalUserTests(AbstractMangoPayUserTests):
         self.klass = MangoPayNaturalUser
 
     def test_save_saves_type(self):
-        self.assertEqual(self.user.type, NATURAL_USER)
+        self.assertEqual(self.user.type, USER_TYPE_CHOICES.natural)
         self.assertFalse(self.user.is_legal())
         self.assertTrue(self.user.is_natural())
 
@@ -91,7 +98,7 @@ class AbstractMangoPayLegalUserTests(AbstractMangoPayUserTests):
         self.klass = MangoPayLegalUser
 
     def test_save_saves_type(self):
-        self.assertEqual(self.user.type, BUSINESS)
+        self.assertEqual(self.user.legal_person_type, LEGAL_USER_TYPE_CHOICES.business)
         self.assertTrue(self.user.is_legal())
         self.assertFalse(self.user.is_natural())
 

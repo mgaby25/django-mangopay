@@ -13,7 +13,7 @@ class MangoPayCardRegistrationTests(TestCase):
     def setUp(self):
         self.card_registration = MangoPayCardRegistrationFactory()
 
-    @patch("mangopay.models.get_mangopay_api_client")
+    @patch("mangopay2.models.get_mangopay_api_client")
     def test_card_registration_created(self, mock_client):
         id = 42
         mock_client.return_value = MockMangoPayApi(card_registration_id=id)
@@ -22,7 +22,7 @@ class MangoPayCardRegistrationTests(TestCase):
         self.assertTrue(MangoPayCardRegistration.objects.filter(
             id=self.card_registration.id, mangopay_id=id).exists())
 
-    @patch("mangopay.models.get_mangopay_api_client")
+    @patch("mangopay2.models.get_mangopay_api_client")
     def test_get_preregistration_data(self, mock_client):
         id = 42
         self.card_registration.mangopay_id = id

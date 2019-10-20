@@ -11,7 +11,7 @@ class MangoPayCardTests(TestCase):
     def setUp(self):
         self.card = MangoPayCardFactory()
 
-    @patch("mangopay.models.get_mangopay_api_client")
+    @patch("mangopay2.models.get_mangopay_api_client")
     def test_request_card_info(self, mock_client):
         id = 42
         mock_client.return_value = MockMangoPayApi(card_id=id)

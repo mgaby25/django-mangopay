@@ -1,23 +1,9 @@
-from mangopaysdk.entities.bankaccount import BankAccount
-from mangopaysdk.entities.card import Card
-from mangopaysdk.entities.cardregistration import CardRegistration
-from mangopaysdk.entities.kycdocument import KycDocument
-from mangopaysdk.entities.kycpage import KycPage
-from mangopaysdk.entities.payin import PayIn
-from mangopaysdk.entities.payout import PayOut
-from mangopaysdk.entities.refund import Refund
-from mangopaysdk.entities.transfer import Transfer
-from mangopaysdk.entities.user import User
-from mangopaysdk.entities.wallet import Wallet
-from mangopaysdk.types.bankaccountdetailsiban import BankAccountDetailsIBAN
-from mangopaysdk.types.money import Money
-from mangopaysdk.types.payinexecutiondetailsdirect import (
-    PayInExecutionDetailsDirect)
-from mangopaysdk.types.payinpaymentdetailsbankwire import (
-    PayInPaymentDetailsBankWire)
+from mangopay.resources import User, Document, Page, BankAccount, Wallet, DirectPayIn, Money, \
+    BankWirePayIn, BankWirePayOut, Transfer, PayInRefund, CardRegistration
+from mangopay.utils import Address
 
 
-class MockMangoPayApi():
+class MockMangoPayApi:
 
     def __init__(self, user_id=None, bank_account_id=None,
                  card_registration_id=None, card_id=None,
@@ -33,7 +19,7 @@ class MockMangoPayApi():
         self.transfers = MockTransferApi(transfer_id)
 
 
-class MockUserApi():
+class MockUserApi:
 
     def __init__(self, user_id, bank_account_id, document_id):
         self.user_id = user_id
@@ -61,7 +47,7 @@ class MockUserApi():
             raise TypeError("User must be a User Entity with an Id")
 
     def CreateUserKycDocument(self, document, user_id):
-        if isinstance(document, KycDocument):
+        if isinstance(document, Document):
             document.Id = self.document_id
             document.Status = "CREATED"
             return document
@@ -69,13 +55,13 @@ class MockUserApi():
             raise TypeError("Document must be a KycDocument entity")
 
     def GetUserKycDocument(self, document_id, user_id):
-        document = KycDocument()
+        document = Document()
         document.Id = document_id
         document.Status = "VALIDATED"
         return document
 
     def UpdateUserKycDocument(self, document, user_id, document_id):
-        if (isinstance(document, KycDocument)
+        if (isinstance(document, Document)
                 and document.Id == document_id
                 and document.Status == "VALIDATION_ASKED"):
             return document
@@ -83,13 +69,13 @@ class MockUserApi():
             raise BaseException("Arguements are of the wrong types")
 
     def CreateUserKycPage(self, page, user_id, document_id):
-        if isinstance(page, KycPage):
+        if isinstance(page, Page):
             pass
         else:
             raise TypeError("Page must be a KycPage")
 
 
-class MockCardApi():
+class MockCardApi:
 
     def __init__(self, card_id):
         self.card_id = card_id
@@ -103,7 +89,7 @@ class MockCardApi():
         return card
 
 
-class MockCardRegistrationApi():
+class MockCardRegistrationApi:
 
     def __init__(self, card_registration_id, card_id=None):
         self.card_registration_id = card_registration_id
@@ -134,7 +120,7 @@ class MockCardRegistrationApi():
             return card_registration
 
 
-class MockWalletApi():
+class MockWalletApi:
 
     def __init__(self, wallet_id):
         self.wallet_id = wallet_id
@@ -153,13 +139,13 @@ class MockWalletApi():
         return wallet
 
 
-class MockPayOutApi():
+class MockPayOutApi:
 
     def __init__(self, pay_out_id):
         self.pay_out_id = pay_out_id
 
     def Create(self, pay_out):
-        if isinstance(pay_out, PayOut) and not pay_out.Id:
+        if isinstance(pay_out, BankWirePayOut) and not pay_out.Id:
             pay_out.Id = self.pay_out_id
             pay_out.ExecutionDate = 12312312
             return pay_out
@@ -167,21 +153,21 @@ class MockPayOutApi():
             raise TypeError("PayOut must be a PayOut Entity")
 
     def Get(self, pay_out_id):
-        pay_out = PayOut()
+        pay_out = BankWirePayOut()
         pay_out.Id = pay_out_id
         pay_out.ExecutionDate = 12312312
         pay_out.Status = "CREATED"
         return pay_out
 
 
-class MockPayInApi():
+class MockPayInApi:
 
     def __init__(self, refund_id, pay_in_id):
         self.refund_id = refund_id
         self.pay_in_id = pay_in_id
 
     def Create(self, pay_in):
-        if isinstance(pay_in, PayIn) and not pay_in.Id:
+        if isinstance(pay_in, DirectPayIn) and not pay_in.Id:
             pay_in.Id = self.pay_in_id
             pay_in.ExecutionDate = 12312312
             pay_in.PaymentDetails = PayInPaymentDetailsBankWire()
@@ -197,7 +183,7 @@ class MockPayInApi():
             raise TypeError("PayIn must be a PayIn entity")
 
     def Get(self, pay_in_id):
-        pay_in = PayIn()
+        pay_in = DirectPayIn()
         pay_in.Id = pay_in_id
         pay_in.ExecutionDate = 12312312
         pay_in.ExecutionDetails = PayInExecutionDetailsDirect()
@@ -215,7 +201,7 @@ class MockPayInApi():
             raise TypeError("Refund must be a refund entity")
 
 
-class MockTransferApi():
+class MockTransferApi:
 
     def __init__(self, transfer_id):
         self.transfer_id = transfer_id

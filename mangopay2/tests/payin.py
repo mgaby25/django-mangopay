@@ -3,18 +3,17 @@ from django.core.exceptions import ValidationError
 
 from unittest.mock import patch
 
-from ..models import MangoPayPayInByCard, MangoPayPayInBankWire
+from ..models import MangoPayDirectPayIn, MangoPayPayInBankWire
 
 from .factories import MangoPayPayInFactory, MangoPayPayInBankWireFactory
 from .client import MockMangoPayApi
-from mangopay.constants import CARD_WEB, BANK_WIRE
 
 
 class MangoPayPayByCardInTests(TestCase):
 
     def setUp(self):
         self.pay_in = MangoPayPayInFactory()
-        self.pay_in.__class__ = MangoPayPayInByCard
+        self.pay_in.__class__ = MangoPayDirectPayIn
 
     @patch("mangopay.models.get_mangopay_api_client")
     def test_create(self, mock_client):
