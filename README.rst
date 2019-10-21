@@ -1,5 +1,5 @@
-.. image:: https://travis-ci.org/mgaby25/django-mangopay.svg?branch=master
-    :target: https://travis-ci.org/mgaby25/django-mangopay
+.. image:: https://travis-ci.org/mgaby25/django-mangopay2.svg?branch=master
+    :target: https://travis-ci.org/mgaby25/django-mangopay2
     :alt: Travis CI Status
 
 |
